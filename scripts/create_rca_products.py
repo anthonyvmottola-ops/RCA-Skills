@@ -550,8 +550,18 @@ class RCAProductCreator:
             return
 
         codes = [e["code"] for e in self.all_entries if e["code"]]
-        if codes:
-            escaped = ", ".join(f"'{c}'" for c in codes)
+        # Also include component codes referenced in bundles so product_id_map
+        # covers components that aren't themselves in the current catalog file.
+        component_codes = [
+            str(comp.get("code", "")).strip()
+            for b in self.bundles
+            for g in b.get("groups", [])
+            for comp in g.get("components", [])
+            if comp.get("code")
+        ]
+        all_codes = list(dict.fromkeys(codes + component_codes))  # dedup, preserve order
+        if all_codes:
+            escaped = ", ".join(f"'{c}'" for c in all_codes)
             for rec in self.sf.query(
                 f"SELECT Id, ProductCode, Type, Name, Description, Family, IsActive, "
                 f"QuantityUnitOfMeasure, StockKeepingUnit "
