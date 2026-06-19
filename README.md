@@ -20,6 +20,7 @@ templates/    YAML catalog templates
 |---|---|---|
 | `describe-rca-product.md` | `/describe-rca-product` | Conversational product intake — describe a product in natural language, Claude builds the YAML |
 | `create-rca-products.md` | `/create-rca-products` | Upload `rca_session.yaml` to Salesforce (dry-run first, then confirm) |
+| `describe-price-adjustment.md` | `/describe-price-adjustment` | Conversational intake for price adjustments — Volume, Attribute-Based, and Bundle-Based schedules |
 | `sync-rca-org.md` | `/sync-rca-org` | Sync org state to a local `.rca/org-snapshot.yaml` snapshot |
 | `promote-rca-products.md` | `/promote-rca-products` | Promote products from one org to another |
 
@@ -40,7 +41,8 @@ cp skills/*.md /path/to/your/sf-project/.claude/commands/
 | `create_rca_products.py` | Creates Product2, PSM options, PricebookEntries, bundle groups, classifications, and attributes from YAML |
 | `create_price_adjustments.py` | Creates PriceAdjustmentSchedule records and child adjustments (Volume/Tier, Attribute-Based, Bundle-Based) |
 | `sync_org_snapshot.py` | Queries the org and writes a full snapshot YAML to `.rca/org-snapshot.yaml` |
-| `update_rca_catalog.py` | Merges a single-product JSON payload into the session YAML catalog |
+| `update_rca_catalog.py` | Merges a single-product JSON payload into the session YAML catalog (used by `/describe-rca-product`) |
+| `update_rca_adjustments.py` | Merges a single adjustment JSON payload into the session adjustments YAML (used by `/describe-price-adjustment`) |
 | `promote_rca_products.py` | Copies product records from a source org to a target org |
 
 ### Requirements
@@ -69,7 +71,8 @@ Copy and edit for your own products. `rca_session.yaml` and `rca_catalog.yaml` a
 /describe-rca-product        →  builds rca_session.yaml
 /create-rca-products         →  uploads products to Salesforce
 /sync-rca-org                →  refreshes .rca/org-snapshot.yaml
-create_price_adjustments.py  →  adds pricing rules to uploaded products
+/describe-price-adjustment   →  builds rca_adj_session.yaml (Volume / Attribute / Bundle)
+create_price_adjustments.py  →  uploads price adjustments to Salesforce
 ```
 
 ---
