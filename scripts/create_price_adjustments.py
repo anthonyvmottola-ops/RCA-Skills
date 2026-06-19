@@ -220,6 +220,25 @@ class PriceAdjustmentCreator:
         self._step4_bundle_adjustments()
         self._step5_activate_schedules()  # activate after child records exist
         self._summary()
+        self._refresh_decision_tables()
+
+    def _refresh_decision_tables(self) -> None:
+        """Refresh only the decision tables touched by this run."""
+        s = self.stats
+        tables: list[str] = []
+        if s["tiers"] > 0:
+            # Both volume and tiered tables consume PriceAdjustmentTier records
+            tables.extend(["volume", "tier"])
+        if s["attr_adjustments"] > 0:
+            tables.append("attribute")
+        if s["bundle_adjustments"] > 0:
+            tables.append("bundle")
+        if not tables:
+            return
+        import sys, os
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from refresh_decision_tables import refresh_tables
+        refresh_tables(self.sf, tables, dry_run=self.sf.dry_run)
 
     # ── Step 0: resolve product codes / PSM names / pricebooks to Ids ────────
     def _step0_resolve(self, snapshot_path: Optional[str] = None) -> None:

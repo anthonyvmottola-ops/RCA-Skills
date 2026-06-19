@@ -242,6 +242,20 @@ class RCAProductCreator:
         self._step6_classifications()
         self._step7_catalog_products()
         self._print_summary()
+        self._refresh_decision_tables()
+
+    def _refresh_decision_tables(self) -> None:
+        """Refresh decision tables that are affected by what this run created/updated."""
+        s = self.stats
+        if s["pricebook_entries"] == 0 and s["pricebook_entries_updated"] == 0:
+            return
+        if self.sf.dry_run:
+            log.info("  [dry-run] Would refresh: Price Book Entries V2 decision table")
+            return
+        import sys, os
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from refresh_decision_tables import refresh_tables
+        refresh_tables(self.sf, ["pricebook"])
 
     # ── Pre-flight: audit existing records that would be UPDATED ────────
     def _step_preflight(self) -> None:

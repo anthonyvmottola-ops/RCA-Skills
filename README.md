@@ -66,8 +66,9 @@ cp skills/*.md ~/.claude/commands/
 
 | Script | Description |
 |---|---|
-| `create_rca_products.py` | Creates Product2, PSM options, PricebookEntries, bundle groups, classifications, and attributes from YAML. Also resolves component codes from the org for bundles that reference pre-existing products. |
-| `create_price_adjustments.py` | Creates PriceAdjustmentSchedule records and child adjustments (Volume/Tier, Attribute-Based, Bundle-Based) |
+| `create_rca_products.py` | Creates Product2, PSM options, PricebookEntries, bundle groups, classifications, and attributes from YAML. Resolves component codes from the org for bundles referencing pre-existing products. Auto-refreshes the **Price Book Entries V2** decision table when PricebookEntry records are created or updated. |
+| `create_price_adjustments.py` | Creates PriceAdjustmentSchedule records and child adjustments (Volume/Tier, Attribute-Based, Bundle-Based). Auto-refreshes the relevant decision tables after each run. |
+| `refresh_decision_tables.py` | Refreshes RCA decision tables via the `refreshDecisionTable` standard action. Used automatically by the create scripts; also callable standalone: `python refresh_decision_tables.py --tables pricebook,attribute --org myorg`. |
 | `sync_org_snapshot.py` | Queries the org and writes a full snapshot YAML to `.rca/org-snapshot.yaml` |
 | `update_rca_catalog.py` | Merges a single-product JSON payload into the session YAML catalog (used by `/describe-rca-product` and `/clone-product`) |
 | `update_rca_adjustments.py` | Merges a single adjustment JSON payload into the session adjustments YAML (used by `/describe-price-adjustment`) |
@@ -106,8 +107,9 @@ Copy and edit for your own products. `rca_session.yaml` and `rca_catalog.yaml` a
 ### Pricing
 ```
 /describe-price-adjustment   →  conversational intake → rca_adj_session.yaml
-create_price_adjustments.py  →  upload price adjustments to Salesforce
+create_price_adjustments.py  →  upload price adjustments + auto-refresh decision tables
 /update-price                →  patch a single PricebookEntry directly
+refresh_decision_tables.py   →  manually trigger a decision table refresh anytime
 ```
 
 ### Lookup & audit (no org connection needed)
