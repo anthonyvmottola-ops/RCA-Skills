@@ -20,6 +20,7 @@ templates/    YAML catalog templates
 
 | Skill | Invocation | Description |
 |---|---|---|
+| `cpq-rca-health.md` | `/cpq-rca-health` | Migration health check — reads the org snapshot and reports `managed_by` status (rca/cpq/both/neither) for every product, flags mid-migration items, and recommends next steps. No live org connection required. |
 | `convert-cpq-to-rca.md` | `/convert-cpq-to-rca` | Converts Salesforce CPQ bundles and products to RCA YAML — fully conversational, prompts for source/target org and product selection. Respects `managed_by` tagging to skip already-migrated products in same-org mode. |
 
 ### Authoring & Upload
@@ -105,6 +106,7 @@ Copy and edit for your own products. `rca_session.yaml` and `rca_catalog.yaml` a
 ### CPQ migration
 ```
 /sync-rca-org                →  sync snapshot (populates managed_by on each product)
+/cpq-rca-health              →  briefing: counts by status, mid-migration flags, next steps
 /convert-cpq-to-rca          →  query CPQ org → map to RCA YAML → write rca_session.yaml
 /create-rca-products         →  dry-run + upload converted products
 /sync-rca-org                →  refresh snapshot (converted products now tagged managed_by: rca)
