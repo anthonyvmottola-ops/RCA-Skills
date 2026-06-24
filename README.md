@@ -16,6 +16,12 @@ templates/    YAML catalog templates
 
 ## Skills (`skills/`)
 
+### CPQ Migration
+
+| Skill | Invocation | Description |
+|---|---|---|
+| `convert-cpq-to-rca.md` | `/convert-cpq-to-rca` | Converts Salesforce CPQ bundles and products to RCA YAML — fully conversational, prompts for source/target org and product selection. Respects `managed_by` tagging to skip already-migrated products in same-org mode. |
+
 ### Authoring & Upload
 
 | Skill | Invocation | Description |
@@ -44,7 +50,7 @@ templates/    YAML catalog templates
 
 | Skill | Invocation | Description |
 |---|---|---|
-| `sync-rca-org.md` | `/sync-rca-org` | Sync org state to a local `.rca/org-snapshot.yaml` snapshot — required by all lookup/audit skills |
+| `sync-rca-org.md` | `/sync-rca-org` | Sync org state to a local `.rca/org-snapshot.yaml` snapshot. Tags every product with `managed_by` (rca/cpq/both/neither) — required by all lookup/audit skills and by `/convert-cpq-to-rca` in same-org mode |
 
 ### Installation
 
@@ -66,11 +72,11 @@ cp skills/*.md ~/.claude/commands/
 
 | Script | Description |
 |---|---|
-| `create_rca_products.py` | Creates Product2, PSM options, PricebookEntries, bundle groups, classifications, and attributes from YAML. Resolves component codes from the org for bundles referencing pre-existing products. Auto-refreshes the **Price Book Entries V2** decision table when PricebookEntry records are created or updated. |
+| `create_rca_products.py` | Creates Product2, PSM options, PricebookEntries, bundle groups, classifications, and attributes from YAML. Supports `IsQuantityEditable` and `QuantityScaleMethod` on bundle components. Auto-refreshes the **Price Book Entries V2** decision table when PricebookEntry records are created or updated. |
 | `create_price_adjustments.py` | Creates PriceAdjustmentSchedule records and child adjustments (Volume/Tier, Attribute-Based, Bundle-Based). Auto-refreshes the relevant decision tables after each run. |
 | `refresh_decision_tables.py` | Refreshes RCA decision tables via the `refreshDecisionTable` standard action. Used automatically by the create scripts; also callable standalone: `python refresh_decision_tables.py --tables pricebook,attribute --org myorg`. |
-| `sync_org_snapshot.py` | Queries the org and writes a full snapshot YAML to `.rca/org-snapshot.yaml` |
-| `update_rca_catalog.py` | Merges a single-product JSON payload into the session YAML catalog (used by `/describe-rca-product` and `/clone-product`) |
+| `sync_org_snapshot.py` | Queries the org and writes a full snapshot YAML to `.rca/org-snapshot.yaml`. Tags every product and bundle with `managed_by: rca\|cpq\|both\|neither` based on whether CPQ (`SBQQ__*`) and/or RCA (`ProductSellingModelOption`) records exist. |
+| `update_rca_catalog.py` | Merges a single-product JSON payload into the session YAML catalog. Supports `is_quantity_editable` and `quantity_scale_method` on bundle components; omits `min_qty`/`max_qty` when null (no false defaults). |
 | `update_rca_adjustments.py` | Merges a single adjustment JSON payload into the session adjustments YAML (used by `/describe-price-adjustment`) |
 | `promote_rca_products.py` | Copies product records from a source org to a target org |
 
@@ -95,6 +101,14 @@ Copy and edit for your own products. `rca_session.yaml` and `rca_catalog.yaml` a
 ---
 
 ## Workflow
+
+### CPQ migration
+```
+/sync-rca-org                →  sync snapshot (populates managed_by on each product)
+/convert-cpq-to-rca          →  query CPQ org → map to RCA YAML → write rca_session.yaml
+/create-rca-products         →  dry-run + upload converted products
+/sync-rca-org                →  refresh snapshot (converted products now tagged managed_by: rca)
+```
 
 ### Product authoring
 ```
@@ -131,6 +145,8 @@ The snapshot is org-specific and excluded from version control by `.gitignore`. 
 ```
 <project-root>/.rca/org-snapshot.yaml
 ```
+
+Each product and bundle entry in the snapshot carries a `managed_by` field (`rca`, `cpq`, `both`, or `neither`) that tracks which system owns it. This enables `/convert-cpq-to-rca` to show only unmigranted CPQ products when running in same-org mode.
 
 ---
 

@@ -1008,7 +1008,8 @@ class RCAProductCreator:
                     try:
                         existing_comp = [] if self.sf.dry_run else self.sf.query(
                             f"SELECT Id, IsComponentRequired, IsDefaultComponent, "
-                            f"Sequence, MinQuantity, MaxQuantity "
+                            f"Sequence, MinQuantity, MaxQuantity, "
+                            f"IsQuantityEditable, QuantityScaleMethod "
                             f"FROM ProductRelatedComponent "
                             f"WHERE ParentProductId = '{bundle_id}' "
                             f"AND ChildProductId = '{comp_id}' "
@@ -1026,10 +1027,14 @@ class RCAProductCreator:
                                 comp_update["IsDefaultComponent"] = bool(comp.get("default", False))
                             if int(comp.get("sequence", seq_j)) != (ec.get("Sequence") or seq_j):
                                 comp_update["Sequence"] = int(comp.get("sequence", seq_j))
-                            if float(comp.get("min_qty", 0)) != float(ec.get("MinQuantity") or 0):
-                                comp_update["MinQuantity"] = float(comp.get("min_qty", 0))
-                            if float(comp.get("max_qty", 0)) != float(ec.get("MaxQuantity") or 0):
-                                comp_update["MaxQuantity"] = float(comp.get("max_qty", 0))
+                            if comp.get("min_qty") is not None and float(comp["min_qty"]) != float(ec.get("MinQuantity") or 0):
+                                comp_update["MinQuantity"] = float(comp["min_qty"])
+                            if comp.get("max_qty") is not None and float(comp["max_qty"]) != float(ec.get("MaxQuantity") or 0):
+                                comp_update["MaxQuantity"] = float(comp["max_qty"])
+                            if "is_quantity_editable" in comp and bool(comp["is_quantity_editable"]) != bool(ec.get("IsQuantityEditable", True)):
+                                comp_update["IsQuantityEditable"] = bool(comp["is_quantity_editable"])
+                            if comp.get("quantity_scale_method") and comp["quantity_scale_method"] != ec.get("QuantityScaleMethod"):
+                                comp_update["QuantityScaleMethod"] = comp["quantity_scale_method"]
                             if comp_update:
                                 try:
                                     self.sf.update("ProductRelatedComponent", ec["Id"], comp_update)
@@ -1057,10 +1062,14 @@ class RCAProductCreator:
                             "IsComponentRequired":     bool(comp.get("required", False)),
                             "IsDefaultComponent":      bool(comp.get("default", False)),
                             "Sequence":                int(comp.get("sequence", seq_j)),
+                            "IsQuantityEditable":      bool(comp.get("is_quantity_editable", True)),
                         }
-                        comp_payload["IsQuantityEditable"] = True
-                        comp_payload["MinQuantity"] = float(comp.get("min_qty", 0))
-                        comp_payload["MaxQuantity"] = float(comp.get("max_qty", 0))
+                        if comp.get("min_qty") is not None:
+                            comp_payload["MinQuantity"] = float(comp["min_qty"])
+                        if comp.get("max_qty") is not None:
+                            comp_payload["MaxQuantity"] = float(comp["max_qty"])
+                        if comp.get("quantity_scale_method"):
+                            comp_payload["QuantityScaleMethod"] = comp["quantity_scale_method"]
                         if bundle_rel_type_id:
                             comp_payload["ProductRelationshipTypeId"] = bundle_rel_type_id
                         self.sf.create("ProductRelatedComponent", comp_payload)

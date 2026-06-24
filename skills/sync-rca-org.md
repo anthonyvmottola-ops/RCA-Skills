@@ -97,12 +97,28 @@ After the script succeeds, read `.rca/org-snapshot.yaml` and display:
 │  Catalogs              │  <catalog names, comma-separated>        │
 │  Products              │  <N> total  ·  <code1>, <code2>, …       │
 │  Bundles               │  <N> total  ·  <code1>, <code2>, …       │
+├────────────────────────┼──────────────────────────────────────────┤
+│  managed_by breakdown  │  RCA only: N  ·  CPQ only: N             │
+│                        │  Both (mid-migration): N  ·  Neither: N  │
 ├────────────────────────┴──────────────────────────────────────────┤
 │  Snapshot written to: .rca/org-snapshot.yaml                      │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
 Truncate product/bundle code lists to the first 5 items followed by `…` if longer.
+
+**`managed_by` field** — every product and bundle in the snapshot carries a `managed_by`
+value indicating which system manages it:
+
+| Value | Meaning |
+|-------|---------|
+| `rca` | Has `ProductSellingModelOption` records — managed by RCA |
+| `cpq` | Has CPQ records (`SBQQ__ProductFeature__c`, `SBQQ__ProductOption__c`, or `SBQQ__SubscriptionType__c`) — managed by CPQ only |
+| `both` | Has both RCA and CPQ records — mid-migration state |
+| `neither` | Plain `Product2` with no CPQ or RCA enrichment |
+
+If CPQ is not installed (SBQQ objects absent), all products will be tagged `rca` or
+`neither`. The CPQ detection queries fail silently — no error is shown.
 
 ---
 

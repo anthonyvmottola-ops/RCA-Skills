@@ -302,9 +302,17 @@ def build_catalog_entry(data: Dict) -> Dict:
                     "required": bool(c.get("required", c.get("ComponentIsRequired", False))),
                     "default":  bool(c.get("default",  c.get("ComponentIsDefault",  False))),
                     "sequence": int(c.get("sequence",  c.get("ComponentSequence",   seq_j))),
-                    "min_qty":  float(c.get("min_qty", c.get("ComponentMinQty", 1))),
-                    "max_qty":  float(c.get("max_qty", c.get("ComponentMaxQty", 1))),
                 }
+                raw_min = c.get("min_qty", c.get("ComponentMinQty"))
+                raw_max = c.get("max_qty", c.get("ComponentMaxQty"))
+                if raw_min is not None:
+                    comp["min_qty"] = float(raw_min)
+                if raw_max is not None:
+                    comp["max_qty"] = float(raw_max)
+                if "is_quantity_editable" in c:
+                    comp["is_quantity_editable"] = bool(c["is_quantity_editable"])
+                if "quantity_scale_method" in c:
+                    comp["quantity_scale_method"] = str(c["quantity_scale_method"])
                 if comp["code"]:
                     components.append(comp)
             group["components"] = components

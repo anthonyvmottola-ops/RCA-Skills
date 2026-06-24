@@ -109,6 +109,22 @@ def get_sf_credentials(org_alias: Optional[str]) -> tuple:
 
 
 # ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+def _managed_by(product_id: str, cpq_ids: set, psm_map: dict) -> str:
+    """Classify a product as cpq / rca / both / neither based on detected records."""
+    has_cpq = product_id in cpq_ids
+    has_rca = product_id in psm_map
+    if has_cpq and has_rca:
+        return "both"
+    if has_cpq:
+        return "cpq"
+    if has_rca:
+        return "rca"
+    return "neither"
+
+
+# ---------------------------------------------------------------------------
 # Snapshot builder
 # ---------------------------------------------------------------------------
 class OrgSnapshotter:
@@ -187,6 +203,40 @@ class OrgSnapshotter:
                 psm_name = (r.get("ProductSellingModel") or {}).get("Name", "")
                 if psm_name:
                     psm_map.setdefault(pid, []).append(psm_name)
+
+        # 5a. CPQ product detection (silent — returns empty sets if CPQ not installed)
+        cpq_ids: set = set()
+        if all_prod_ids:
+            print("  › CPQ detection (SBQQ objects)")
+            feat_recs = self.sf.query_safe(
+                "SELECT SBQQ__ConfiguredSKU__c FROM SBQQ__ProductFeature__c",
+                silent=True,
+            )
+            cpq_ids.update(r["SBQQ__ConfiguredSKU__c"] for r in feat_recs
+                           if r.get("SBQQ__ConfiguredSKU__c"))
+
+            opt_recs = self.sf.query_safe(
+                "SELECT SBQQ__ConfiguredSKU__c, SBQQ__OptionalSKU__c "
+                "FROM SBQQ__ProductOption__c",
+                silent=True,
+            )
+            for r in opt_recs:
+                if r.get("SBQQ__ConfiguredSKU__c"):
+                    cpq_ids.add(r["SBQQ__ConfiguredSKU__c"])
+                if r.get("SBQQ__OptionalSKU__c"):
+                    cpq_ids.add(r["SBQQ__OptionalSKU__c"])
+
+            sub_recs = self.sf.query_safe(
+                "SELECT Id FROM Product2 WHERE SBQQ__SubscriptionType__c != null",
+                silent=True,
+            )
+            cpq_ids.update(r["Id"] for r in sub_recs)
+
+            if cpq_ids:
+                n = sum(1 for pid in all_prod_ids if pid in cpq_ids)
+                print(f"    CPQ-managed products found: {n}")
+            else:
+                print("    CPQ not detected (SBQQ objects absent or empty)")
 
         # 6. Pricebook entries per product
         pbe_map: Dict[str, List[Dict]] = {}  # product_id → [{pricebook, price, currency}]
@@ -358,8 +408,9 @@ class OrgSnapshotter:
 
         products_out = []
         for r in product_recs:
-            pid    = r["Id"]
-            entry  = self._base_entry(r, pid, cat_link_map, psm_map, pbe_map)
+            pid   = r["Id"]
+            entry = self._base_entry(r, pid, cat_link_map, psm_map, pbe_map)
+            entry["managed_by"] = _managed_by(pid, cpq_ids, psm_map)
             products_out.append(entry)
 
         bundles_out = []
@@ -368,8 +419,10 @@ class OrgSnapshotter:
             entry = self._base_entry(r, bid, cat_link_map, psm_map, pbe_map)
             if group_map.get(bid):
                 entry["groups"] = self._build_groups(group_map[bid])
+            entry["managed_by"] = _managed_by(bid, cpq_ids, psm_map)
             bundles_out.append(entry)
 
+        all_out = products_out + bundles_out
         now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         return {
             "meta": {
@@ -380,6 +433,10 @@ class OrgSnapshotter:
                 "catalogs_count":             len(catalogs_out),
                 "selling_models_count":       len(selling_models_out),
                 "price_adj_schedules_count":  len(price_adj_schedules_out),
+                "cpq_only_count":             sum(1 for e in all_out if e.get("managed_by") == "cpq"),
+                "rca_only_count":             sum(1 for e in all_out if e.get("managed_by") == "rca"),
+                "both_count":                 sum(1 for e in all_out if e.get("managed_by") == "both"),
+                "unmanaged_count":            sum(1 for e in all_out if e.get("managed_by") == "neither"),
             },
             "catalogs":                 catalogs_out,
             "selling_models":           selling_models_out,
