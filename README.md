@@ -30,7 +30,6 @@ templates/    YAML catalog templates
 | `describe-rca-product.md` | `/describe-rca-product` | Conversational product intake — describe a product in natural language, Claude builds the YAML and optionally uploads |
 | `create-rca-products.md` | `/create-rca-products` | Upload `rca_session.yaml` to Salesforce (dry-run first, then confirm) |
 | `describe-price-adjustment.md` | `/describe-price-adjustment` | Conversational intake for price adjustments — Volume, Attribute-Based, and Bundle-Based schedules |
-| `promote-rca-products.md` | `/promote-rca-products` | Promote products from one org to another |
 
 ### Lookup & Audit (snapshot-only, no API calls)
 
@@ -47,11 +46,13 @@ templates/    YAML catalog templates
 | `update-price.md` | `/update-price [code price]` | Update one or more PricebookEntry records by product code + pricebook — resolves ID via SOQL, patches UnitPrice, confirms before/after |
 | `clone-product.md` | `/clone-product [code]` | Clone an existing product or bundle from the snapshot, modify fields and group/component structure, then upload — works for both products and bundles |
 
-### Org Sync
+### Org Sync & Promotion
 
 | Skill | Invocation | Description |
 |---|---|---|
 | `sync-rca-org.md` | `/sync-rca-org` | Sync org state to a local `.rca/org-snapshot.yaml` snapshot. Tags every product with `managed_by` (rca/cpq/both/neither) — required by all lookup/audit skills and by `/convert-cpq-to-rca` in same-org mode |
+| `org-diff.md` | `/org-diff --target <path>` | Compare two org snapshots before promoting — shows products missing in target, price deltas, PSM mismatches, bundle structure diffs, and selling model gaps. No API calls; pure snapshot comparison. |
+| `promote-rca-products.md` | `/promote-rca-products` | Promote products from a source snapshot to a target org (upsert). Pre-flight checks for PSMs and pricebooks; always dry-runs first. |
 
 ### Installation
 
@@ -79,7 +80,8 @@ cp skills/*.md ~/.claude/commands/
 | `sync_org_snapshot.py` | Queries the org and writes a full snapshot YAML to `.rca/org-snapshot.yaml`. Tags every product and bundle with `managed_by: rca\|cpq\|both\|neither` based on whether CPQ (`SBQQ__*`) and/or RCA (`ProductSellingModelOption`) records exist. |
 | `update_rca_catalog.py` | Merges a single-product JSON payload into the session YAML catalog. Supports `is_quantity_editable` and `quantity_scale_method` on bundle components; omits `min_qty`/`max_qty` when null (no false defaults). |
 | `update_rca_adjustments.py` | Merges a single adjustment JSON payload into the session adjustments YAML (used by `/describe-price-adjustment`) |
-| `promote_rca_products.py` | Copies product records from a source org to a target org |
+| `promote_rca_products.py` | Copies product records from a source org to a target org (upsert). Pre-flight checks for missing PSMs and pricebooks in the target. |
+| `diff_org_snapshots.py` | Compares two `.rca/org-snapshot.yaml` files — reports missing products, price deltas, PSM mismatches, bundle structure diffs, and selling model gaps. No API calls; match by `code` (org-agnostic). CLI: `--source`, `--target`, `--include`, `--format text\|json`, `--codes-only`. |
 
 ### Requirements
 
@@ -102,6 +104,17 @@ Copy and edit for your own products. `rca_session.yaml` and `rca_catalog.yaml` a
 ---
 
 ## Workflow
+
+### Dev → Sandbox → Prod promotion
+```
+/sync-rca-org                →  sync dev org snapshot (.rca/org-snapshot.yaml)
+/sync-rca-org --org sandbox  →  sync sandbox snapshot to a separate path
+/org-diff --target ../sandbox-project/.rca/org-snapshot.yaml
+                             →  see what's missing, changed, or diverged before promoting
+/promote-rca-products --target-org sandbox
+                             →  dry-run + confirm + upsert missing/changed products
+/sync-rca-org --org sandbox  →  refresh sandbox snapshot after promote
+```
 
 ### CPQ migration
 ```
