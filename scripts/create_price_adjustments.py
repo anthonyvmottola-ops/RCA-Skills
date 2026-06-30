@@ -881,7 +881,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--catalog", "-c",
-        default=os.path.join(os.path.dirname(__file__), "rca_adjustments.yaml"),
+        default=".rca/rca_adjustments.yaml",
         help="Path to the YAML adjustments catalog (default: rca_adjustments.yaml)"
     )
     parser.add_argument("--org", "-o", default=None,

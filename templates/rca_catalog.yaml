@@ -1,0 +1,335 @@
+# ============================================================
+# RCA Product Catalog — Salesforce Revenue Cloud Advanced (ARM)
+# Edit directly or use /describe-rca-product in Claude Code
+# Upload: python create_rca_products.py --catalog rca_catalog.yaml
+# ============================================================
+
+catalogs:
+- name: Main Product Catalog
+  code: MAIN
+  categories:
+  - name: Software
+    code: SW
+    categories:
+    - name: Platform Licenses
+      code: SW-PLAT
+    - name: Bundles
+      code: SW-BNDL
+  - name: Services
+    code: SVC
+    categories:
+    - name: Implementation
+      code: SVC-IMPL
+  - name: Support
+    code: SUPP
+  - name: Technical
+    code: TECH
+products:
+- code: PLAT-ENT-001
+  name: Enterprise Platform License
+  description: Full-access annual enterprise platform license
+  family: Software
+  uom: Each
+  sku: SKU-PLAT-ENT-001
+  active: true
+  psm_options:
+  - Annual Termed
+  - Monthly Evergreen
+  pricebook_entries:
+  - pricebook: Standard Price Book
+    price: 48000.0
+    currency: USD
+  - pricebook: Partner Price Book
+    price: 43200.0
+    currency: USD
+  catalog: Main Product Catalog
+  category: Software > Platform Licenses
+- code: PLAT-SMB-001
+  name: SMB Platform License
+  description: Standard platform license for small-medium business
+  family: Software
+  active: true
+  uom: Each
+  sku: SKU-PLAT-SMB-001
+  catalog: Main Product Catalog
+  category: Software > Platform Licenses
+  psm_options:
+  - Annual Termed
+  - Monthly Evergreen
+  pricebook_entries:
+  - pricebook: Standard Price Book
+    price: 12000.0
+    currency: USD
+  - pricebook: Partner Price Book
+    price: 10800.0
+    currency: USD
+- code: IMPL-STD-001
+  name: Standard Implementation
+  description: Standard onboarding and implementation services
+  family: Services
+  active: true
+  uom: Hours
+  sku: SKU-IMPL-STD-001
+  catalog: Main Product Catalog
+  category: Services > Implementation
+  psm_options:
+  - One-Time
+  pricebook_entries:
+  - pricebook: Standard Price Book
+    price: 5000.0
+    currency: USD
+  - pricebook: Partner Price Book
+    price: 4500.0
+    currency: USD
+- code: IMPL-PREM-001
+  name: Premium Implementation
+  description: Premium white-glove implementation with dedicated CSM
+  family: Services
+  active: true
+  uom: Hours
+  sku: SKU-IMPL-PREM-001
+  catalog: Main Product Catalog
+  category: Services > Implementation
+  psm_options:
+  - One-Time
+  pricebook_entries:
+  - pricebook: Standard Price Book
+    price: 15000.0
+    currency: USD
+- code: SUPP-GOLD-001
+  name: Gold Support
+  description: Gold tier support — 4 hr SLA
+  family: Support
+  active: true
+  uom: Each
+  sku: SKU-SUPP-GOLD-001
+  catalog: Main Product Catalog
+  category: Support
+  psm_options:
+  - Annual Termed
+  - Monthly Evergreen
+  pricebook_entries:
+  - pricebook: Standard Price Book
+    price: 9600.0
+    currency: USD
+  - pricebook: Partner Price Book
+    price: 8640.0
+    currency: USD
+- code: SUPP-PLAT-001
+  name: Platinum Support
+  description: Platinum tier support — 1 hr SLA + TAM
+  family: Support
+  active: true
+  uom: Each
+  sku: SKU-SUPP-PLAT-001
+  catalog: Main Product Catalog
+  category: Support
+  psm_options:
+  - Annual Termed
+  - Monthly Evergreen
+  pricebook_entries:
+  - pricebook: Standard Price Book
+    price: 19200.0
+    currency: USD
+- code: PH-001
+  name: Pre Hook
+  uom: Each
+  active: true
+  catalog: Main Product Catalog
+  category: Technical
+  psm_options:
+  - One-Time
+  pricebook_entries:
+  - pricebook: Standard Price Book
+    price: 200.0
+    currency: USD
+- code: PP-001
+  name: Pricing Procedure
+  uom: Each
+  active: true
+  catalog: Main Product Catalog
+  category: Technical
+  psm_options:
+  - One-Time
+  pricebook_entries:
+  - pricebook: Standard Price Book
+    price: 50.0
+    currency: USD
+- code: F-001
+  name: Fulfilment
+  uom: Each
+  active: true
+  catalog: Main Product Catalog
+  category: Technical
+  psm_options:
+  - One-Time
+  pricebook_entries:
+  - pricebook: Standard Price Book
+    price: 200.0
+    currency: USD
+- code: D-001
+  name: Decomp
+  uom: Each
+  active: true
+  catalog: Main Product Catalog
+  category: Technical
+  psm_options:
+  - One-Time
+  pricebook_entries:
+  - pricebook: Standard Price Book
+    price: 100.0
+    currency: USD
+bundles:
+- code: BUNDLE-ENT-001
+  name: Enterprise Suite
+  description: Complete enterprise bundle — platform, implementation, and support
+  family: Software
+  active: true
+  uom: Each
+  sku: SKU-BUNDLE-ENT-001
+  catalog: Main Product Catalog
+  category: Software > Bundles
+  psm_options:
+  - Annual Termed
+  pricebook_entries:
+  - pricebook: Standard Price Book
+    price: 0.0
+    currency: USD
+  groups:
+  - name: Core Platform
+    code: CORE
+    min_selections: 1
+    max_selections: 1
+    sequence: 1
+    components:
+    - code: PLAT-ENT-001
+      min_qty: 1
+      max_qty: 1
+      required: true
+      default: true
+      sequence: 1
+  - name: Implementation Services
+    code: IMPL
+    min_selections: 1
+    max_selections: 1
+    sequence: 2
+    components:
+    - code: IMPL-STD-001
+      min_qty: 1
+      max_qty: 1
+      required: false
+      default: true
+      sequence: 1
+    - code: IMPL-PREM-001
+      min_qty: 1
+      max_qty: 1
+      required: false
+      default: false
+      sequence: 2
+  - name: Support Tier
+    code: SUPP
+    min_selections: 1
+    max_selections: 1
+    sequence: 3
+    components:
+    - code: SUPP-GOLD-001
+      min_qty: 1
+      max_qty: 1
+      required: false
+      default: true
+      sequence: 1
+    - code: SUPP-PLAT-001
+      min_qty: 1
+      max_qty: 1
+      required: false
+      default: false
+      sequence: 2
+- code: BUNDLE-SMB-001
+  name: SMB Starter Bundle
+  description: SMB bundle — platform and standard implementation
+  family: Software
+  active: true
+  uom: Each
+  sku: SKU-BUNDLE-SMB-001
+  catalog: Main Product Catalog
+  category: Software > Bundles
+  psm_options:
+  - Annual Termed
+  pricebook_entries:
+  - pricebook: Standard Price Book
+    price: 0.0
+    currency: USD
+  groups:
+  - name: Core Platform
+    code: CORE
+    min_selections: 1
+    max_selections: 1
+    sequence: 1
+    components:
+    - code: PLAT-SMB-001
+      min_qty: 1
+      max_qty: 1
+      required: true
+      default: true
+      sequence: 1
+  - name: Implementation Services
+    code: IMPL
+    min_selections: 1
+    max_selections: 1
+    sequence: 2
+    components:
+    - code: IMPL-STD-001
+      min_qty: 1
+      max_qty: 1
+      required: true
+      default: true
+      sequence: 1
+- code: BUNDLE-RCAI-001
+  name: RCA Implementation
+  uom: Each
+  active: true
+  catalog: Main Product Catalog
+  category: Software > Bundles
+  psm_options:
+  - One-Time
+  pricebook_entries:
+  - pricebook: Standard Price Book
+    price: 20000.0
+    currency: USD
+  groups:
+  - name: Pricing
+    sequence: 1
+    code: PRICING
+    min_selections: 0
+    max_selections: 2
+    components:
+    - code: PH-001
+      required: false
+      default: false
+      sequence: 1
+      min_qty: 1.0
+      max_qty: 1.0
+    - code: PP-001
+      required: false
+      default: false
+      sequence: 2
+      min_qty: 1.0
+      max_qty: 1.0
+  - name: DRO
+    sequence: 2
+    code: DRO
+    min_selections: 0
+    max_selections: 2
+    components:
+    - code: F-001
+      required: false
+      default: false
+      sequence: 1
+      min_qty: 1.0
+      max_qty: 1.0
+    - code: D-001
+      required: false
+      default: false
+      sequence: 2
+      min_qty: 1.0
+      max_qty: 1.0

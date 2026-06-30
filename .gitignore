@@ -6,6 +6,9 @@ __pycache__/
 # Session and live catalog files — contain org-specific data, not for version control
 rca_session.yaml
 rca_catalog.yaml
+# But keep the starter templates in version control
+!templates/rca_session.yaml
+!templates/rca_catalog.yaml
 
 # Org snapshot — auto-generated, commit separately if you want to track org state
 .rca/

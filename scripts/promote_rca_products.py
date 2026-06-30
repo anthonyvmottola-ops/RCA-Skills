@@ -282,8 +282,8 @@ def main() -> None:
     if not source_path:
         candidates = [
             ".rca/org-snapshot.yaml",
-            os.path.expanduser("~/tools/rca-product-creator/rca_session.yaml"),
-            os.path.expanduser("~/tools/rca-product-creator/rca_catalog.yaml"),
+            ".rca/rca_session.yaml",
+            ".rca/rca_catalog.yaml",
         ]
         source_path = next((p for p in candidates if os.path.isfile(p)), None)
         if not source_path:

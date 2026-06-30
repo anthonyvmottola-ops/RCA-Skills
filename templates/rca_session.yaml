@@ -1,0 +1,8 @@
+# ============================================================
+# RCA Session Catalog — Salesforce Revenue Cloud Advanced
+# Cleared automatically at the start of each /describe-rca-product session
+# Upload: python create_rca_products.py --catalog .rca/rca_session.yaml
+# ============================================================
+
+products: []
+bundles: []

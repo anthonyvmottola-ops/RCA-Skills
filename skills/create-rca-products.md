@@ -53,8 +53,10 @@ If arguments are not provided, ask the user:
 3. Current directory
 4. `rca-product-creator/` subdirectory of current directory
 
-If `--catalog` not provided, use `<SCRIPTS_DIR>/rca_session.yaml`.
-If `rca_session.yaml` is empty or missing, fall back to `<SCRIPTS_DIR>/rca_catalog.yaml`.
+**Determine the project root** — the directory containing `CLAUDE.md`, walking up from the current directory. If not found, use the current directory.
+
+If `--catalog` not provided, use the `Session catalog:` value from `CLAUDE.md` (resolved relative to project root); if not found, fall back to `<PROJECT_ROOT>/.rca/rca_session.yaml`.
+If the session catalog is empty or missing, fall back to `<PROJECT_ROOT>/.rca/rca_catalog.yaml`.
 If neither found, ask: "Where is your catalog file?"
 
 If `--org` not provided, read the default org alias from `CLAUDE.md` (`## RCA Tools / Default org alias:`).

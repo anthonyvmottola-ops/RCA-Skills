@@ -40,10 +40,12 @@ The command:
 
 Set `SCRIPTS_DIR` to the first directory that contains `promote_rca_products.py`.
 
+**Determine the project root** — the directory containing `CLAUDE.md`, walking up from the current directory. If not found, use the current directory.
+
 **Resolve `--source`:** if not provided, check in order:
-1. `.rca/org-snapshot.yaml` in the current project root
-2. `<SCRIPTS_DIR>/rca_session.yaml`
-3. `<SCRIPTS_DIR>/rca_catalog.yaml`
+1. `<PROJECT_ROOT>/.rca/org-snapshot.yaml`
+2. `<PROJECT_ROOT>/.rca/rca_session.yaml`
+3. `<PROJECT_ROOT>/.rca/rca_catalog.yaml`
 
 Use the first one that exists.
 

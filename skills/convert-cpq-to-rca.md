@@ -50,14 +50,16 @@ Flags bypass the intake for scripted or power-user workflows.
 
 ### STEP 0 — Start a fresh session
 
+**Determine the project root** — the directory containing `CLAUDE.md`, walking up from the current directory. If not found, use the current directory.
+
 **Locate the scripts directory** by checking in this order:
-1. Read `CLAUDE.md` in the current project root — use the path under `## RCA Tools / Scripts:`
+1. Read `CLAUDE.md` in the project root — use the path under `## RCA Tools / Scripts:`
 2. `~/tools/rca-product-creator/`
 3. Current directory
 4. `rca-product-creator/` subdirectory of current directory
 
 Set `SCRIPTS_DIR` to the first directory that contains `update_rca_catalog.py`.
-Set `CATALOG_PATH` to `<SCRIPTS_DIR>/rca_session.yaml`.
+Set `CATALOG_PATH` to the `Session catalog:` value from `CLAUDE.md` (resolved relative to project root); if not found, fall back to `<PROJECT_ROOT>/.rca/rca_session.yaml`.
 
 **Clear the session catalog** (run silently before anything else):
 

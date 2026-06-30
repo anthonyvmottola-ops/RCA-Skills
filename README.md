@@ -97,9 +97,11 @@ Authentication uses `sf org display` — no passwords stored. Requires the [Sale
 
 | File | Description |
 |---|---|
-| `rca_adjustments.yaml` | Example catalog for `create_price_adjustments.py` — Volume, Attribute, and Bundle schedule examples |
+| `rca_catalog.yaml` | Starter product catalog — copy to your org project's `.rca/rca_catalog.yaml` and edit |
+| `rca_session.yaml` | Empty session buffer — copy to your org project's `.rca/rca_session.yaml` |
+| `rca_adjustments.yaml` | Example price adjustments catalog — Volume, Attribute, and Bundle schedule examples |
 
-Copy and edit for your own products. `rca_session.yaml` and `rca_catalog.yaml` are org-specific and are excluded from version control via `.gitignore`.
+All three files are org-specific and should live in your project's `.rca/` directory (excluded from org-project version control via `.gitignore`). The templates here are starter copies only.
 
 ---
 
@@ -173,6 +175,23 @@ Add this to your Salesforce project's `CLAUDE.md` so Claude Code knows where the
 ## RCA Tools
 - **Scripts:** ~/tools/rca-product-creator/
 - **Default org alias:** myorg
-- **Session catalog:** ~/tools/rca-product-creator/rca_session.yaml
-- **Master catalog:** ~/tools/rca-product-creator/rca_catalog.yaml
+- **Session catalog:** .rca/rca_session.yaml
+- **Master catalog:** .rca/rca_catalog.yaml
+- **Adjustments catalog:** .rca/rca_adjustments.yaml
 ```
+
+The catalog paths are **project-relative** — each org project has its own `.rca/` directory containing its own catalog, session, and adjustments files. The scripts in `~/tools/rca-product-creator/` are the shared engine; only the data lives per-org.
+
+### Setting up a new org project
+
+```bash
+mkdir -p .rca
+# Copy starter templates from the repo
+cp templates/rca_catalog.yaml .rca/
+cp templates/rca_session.yaml .rca/
+cp templates/rca_adjustments.yaml .rca/
+# Sync the org snapshot
+/sync-rca-org
+```
+
+Add `.rca/org-snapshot.yaml` to `.gitignore` (org-specific, not meant for version control). The catalog files may be committed if you want to track product definitions in source control.
