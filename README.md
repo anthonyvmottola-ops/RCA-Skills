@@ -46,6 +46,15 @@ templates/    YAML catalog templates
 | `update-price.md` | `/update-price [code price]` | Update one or more PricebookEntry records by product code + pricebook — resolves ID via SOQL, patches UnitPrice, confirms before/after |
 | `clone-product.md` | `/clone-product [code]` | Clone an existing product or bundle from the snapshot, modify fields and group/component structure, then upload — works for both products and bundles |
 
+### Pricing Procedures (Metadata API, not REST)
+
+Pricing Procedures are `ExpressionSetDefinition` metadata (nested XML, like a Flow) — not a simple SObject. These two skills work via `sf project retrieve`/`deploy` instead of REST record CRUD, and always write to a new **Draft** version so the live Active version is never touched in place.
+
+| Skill | Invocation | Description |
+|---|---|---|
+| `describe-pricing-procedure.md` | `/describe-pricing-procedure "<name>"` | Read-only: retrieve and render a Pricing Procedure's steps, `customElement` parameters, and versions. Collapses plumbing/structural steps and non-Active versions by default (`--full`/`--step <name>` show everything unfiltered). |
+| `update-pricing-procedure.md` | `/update-pricing-procedure "<name>"` | Edit an existing step's field/parameter, or add a new step cloned from an existing one (never authored from scratch). Consults `pricing_procedure_step_catalog.yaml` before interviewing. Always clones into a new Draft version; dry-run then deploy. |
+
 ### Org Sync & Promotion
 
 | Skill | Invocation | Description |
@@ -82,6 +91,9 @@ cp skills/*.md ~/.claude/commands/
 | `update_rca_adjustments.py` | Merges a single adjustment JSON payload into the session adjustments YAML (used by `/describe-price-adjustment`) |
 | `promote_rca_products.py` | Copies product records from a source org to a target org (upsert). Pre-flight checks for missing PSMs and pricebooks in the target. |
 | `diff_org_snapshots.py` | Compares two `.rca/org-snapshot.yaml` files — reports missing products, price deltas, PSM mismatches, bundle structure diffs, and selling model gaps. No API calls; match by `code` (org-agnostic). CLI: `--source`, `--target`, `--include`, `--format text\|json`, `--codes-only`. |
+| `read_pricing_procedure.py` | Resolves a Pricing Procedure's DeveloperName via Tooling API, retrieves its real metadata via `sf project retrieve start`, parses it into a readable structure. Shared by both Pricing Procedure skills — never re-implemented. |
+| `patch_pricing_procedure.py` | Clones a Pricing Procedure version into a new Draft, applies step edits (`set_field`/`set_parameter`/`set_condition`) and/or clone-based step additions, writes the patched XML plus a unified diff (no git dependency). |
+| `catalog_pricing_procedure_steps.py` | Scans every `ExpressionSetDefinition` in the org, filters to genuine Pricing Procedures, and writes `.rca/pricing_procedure_step_catalog.yaml` — every `actionType`'s parameter shape, the operator/valueType vocabulary, and whether each procedure's `sequenceNumber` is a tiered/shared marker or a unique ordinal. |
 
 ### Requirements
 
@@ -151,6 +163,14 @@ refresh_decision_tables.py   →  manually trigger a decision table refresh anyt
 /catalog-health [scope]      →  audit for common data problems
 ```
 
+### Pricing Procedures
+```
+catalog_pricing_procedure_steps.py  →  build/refresh the actionType + sequencing reference
+/describe-pricing-procedure "<name>" →  inspect current steps/versions (read-only)
+/update-pricing-procedure "<name>"   →  edit a step, or add one cloned from an existing step
+                                     →  dry-run deploy, then confirm, then live deploy (new Draft version)
+```
+
 ---
 
 ## Snapshot
@@ -164,6 +184,14 @@ The snapshot is org-specific and excluded from version control by `.gitignore`. 
 ```
 
 Each product and bundle entry in the snapshot carries a `managed_by` field (`rca`, `cpq`, `both`, or `neither`) that tracks which system owns it. This enables `/convert-cpq-to-rca` to show only unmigranted CPQ products when running in same-org mode.
+
+`/update-pricing-procedure` reads a second, similarly local, similarly regeneratable reference file:
+
+```
+<project-root>/.rca/pricing_procedure_step_catalog.yaml
+```
+
+Built by `catalog_pricing_procedure_steps.py` — a point-in-time snapshot, not live-queried at interview time, so re-run it after any deploy that adds/changes Pricing Procedure steps.
 
 ---
 
