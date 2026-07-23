@@ -63,6 +63,12 @@ Pricing Procedures are `ExpressionSetDefinition` metadata (nested XML, like a Fl
 | `org-diff.md` | `/org-diff --target <path>` | Compare two org snapshots before promoting — shows products missing in target, price deltas, PSM mismatches, bundle structure diffs, and selling model gaps. No API calls; pure snapshot comparison. |
 | `promote-rca-products.md` | `/promote-rca-products` | Promote products from a source snapshot to a target org (upsert). Pre-flight checks for PSMs and pricebooks; always dry-runs first. |
 
+### Permissions
+
+| Skill | Invocation | Description |
+|---|---|---|
+| `build-rca-permission-set-group.md` | `/build-rca-permission-set-group` | Discovers the real standard Permission Sets + Permission Set Licenses in the org, interviews for personas (Sales Rep, Pricing Manager, Contract Admin, DRO Admin, Billing Admin, ...), flags known risky defaults (e.g. `Manage Flows` bundled into admin sets) with an optional muting Permission Set, then generates and deploys `PermissionSetGroup` metadata. Never hardcodes permission set API names — always queries the live org first. |
+
 ### Installation
 
 Copy the skill files you want into your project's `.claude/commands/` directory:
@@ -94,6 +100,8 @@ cp skills/*.md ~/.claude/commands/
 | `read_pricing_procedure.py` | Resolves a Pricing Procedure's DeveloperName via Tooling API, retrieves its real metadata via `sf project retrieve start`, parses it into a readable structure. Shared by both Pricing Procedure skills — never re-implemented. |
 | `patch_pricing_procedure.py` | Clones a Pricing Procedure version into a new Draft, applies step edits (`set_field`/`set_parameter`/`set_condition`) and/or clone-based step additions, writes the patched XML plus a unified diff (no git dependency). |
 | `catalog_pricing_procedure_steps.py` | Scans every `ExpressionSetDefinition` in the org, filters to genuine Pricing Procedures, and writes `.rca/pricing_procedure_step_catalog.yaml` — every `actionType`'s parameter shape, the operator/valueType vocabulary, and whether each procedure's `sequenceNumber` is a tiered/shared marker or a unique ordinal. |
+| `discover_rca_permission_sets.py` | Queries `PermissionSet` and `PermissionSetLicense` in the org, tags each Permission Set with a best-guess functional area (Catalog, Pricing, Transaction/Order Capture, Contracts, DRO/Fulfillment, Billing, ...) and flags known risky defaults (e.g. `Manage Flows` bundled into admin-sounding sets). Read-only. |
+| `build_permission_set_group.py` | Writes `PermissionSetGroup` metadata (and companion muting `PermissionSet` metadata, if requested) from a JSON spec of persona → permission set names, then deploys via `sf project deploy start` (dry-run first). |
 
 ### Requirements
 
@@ -169,6 +177,13 @@ catalog_pricing_procedure_steps.py  →  build/refresh the actionType + sequenci
 /describe-pricing-procedure "<name>" →  inspect current steps/versions (read-only)
 /update-pricing-procedure "<name>"   →  edit a step, or add one cloned from an existing step
                                      →  dry-run deploy, then confirm, then live deploy (new Draft version)
+```
+
+### Permissions
+```
+/build-rca-permission-set-group      →  discover real Permission Sets + Licenses in the org
+                                     →  interview for personas, flag risky defaults
+                                     →  dry-run deploy, then confirm, then live deploy PermissionSetGroup(s)
 ```
 
 ---
