@@ -69,6 +69,14 @@ Pricing Procedures are `ExpressionSetDefinition` metadata (nested XML, like a Fl
 |---|---|---|
 | `build-rca-permission-set-group.md` | `/build-rca-permission-set-group` | Discovers the real standard Permission Sets + Permission Set Licenses in the org, interviews for personas (Sales Rep, Pricing Manager, Contract Admin, DRO Admin, Billing Admin, ...), flags known risky defaults (e.g. `Manage Flows` bundled into admin sets) with an optional muting Permission Set, then generates and deploys `PermissionSetGroup` metadata. Never hardcodes permission set API names — always queries the live org first. |
 
+### Context Definitions
+
+`ContextAttribute`/`ContextTag`/`ContextMapping`/`ContextAttributeMapping`/`ContextAttrHydrationDetail` are plain REST SObjects, not Tooling API — only the `CustomField` creation step uses Tooling API. Never hardcodes which `ContextDefinition` to use: a real org can have a decoy `ContextDefinition` extended from the same standard definition but not referenced by any live Pricing Procedure, so this always cross-references `ExpressionSetDefinitionContextDefinition` first. All Context\* writes are additive-only (never patched) since Context Definitions are append-only while active.
+
+| Skill | Invocation | Description |
+|---|---|---|
+| `create-context-field.md` | `/create-context-field` | Creates a custom field, then wires it into the live Sales Transaction Context Definition (`ContextAttribute` + `ContextTag` + `ContextAttributeMapping` + `ContextAttrHydrationDetail`) for `Quote`/`QuoteLineItem`/`Order`/`OrderItem` (extendable to `Asset`/`AssetAction`/`AssetActionSource`/`Contract`). Live-discovers the correct Context Definition/Node/Mapping chain every run — a mandatory `--discover-only` step always runs before any write. |
+
 ### Installation
 
 Copy the skill files you want into your project's `.claude/commands/` directory:
@@ -102,6 +110,7 @@ cp skills/*.md ~/.claude/commands/
 | `catalog_pricing_procedure_steps.py` | Scans every `ExpressionSetDefinition` in the org, filters to genuine Pricing Procedures, and writes `.rca/pricing_procedure_step_catalog.yaml` — every `actionType`'s parameter shape, the operator/valueType vocabulary, and whether each procedure's `sequenceNumber` is a tiered/shared marker or a unique ordinal. |
 | `discover_rca_permission_sets.py` | Queries `PermissionSet` and `PermissionSetLicense` in the org, tags each Permission Set with a best-guess functional area (Catalog, Pricing, Transaction/Order Capture, Contracts, DRO/Fulfillment, Billing, ...) and flags known risky defaults (e.g. `Manage Flows` bundled into admin-sounding sets). Read-only. |
 | `build_permission_set_group.py` | Writes `PermissionSetGroup` metadata (and companion muting `PermissionSet` metadata, if requested) from a JSON spec of persona → permission set names, then deploys via `sf project deploy start` (dry-run first). |
+| `create_context_field.py` | Creates a `CustomField` via Tooling API, then creates `ContextAttribute` + `ContextTag` + `ContextAttributeMapping` + `ContextAttrHydrationDetail` records wiring it into the live Sales Transaction Context Definition. Discovers the correct `ContextDefinition`/`ContextNode`/`ContextMapping` chain fresh every run (`--discover-only`, `--dry-run`, live apply) — never hardcodes org-specific record Ids. |
 
 ### Requirements
 
@@ -120,8 +129,9 @@ Authentication uses `sf org display` — no passwords stored. Requires the [Sale
 | `rca_catalog.yaml` | Starter product catalog — copy to your org project's `.rca/rca_catalog.yaml` and edit |
 | `rca_session.yaml` | Empty session buffer — copy to your org project's `.rca/rca_session.yaml` |
 | `rca_adjustments.yaml` | Example price adjustments catalog — Volume, Attribute, and Bundle schedule examples |
+| `context_fields.yaml` | Example context-field catalog — custom field + Context Definition Attribute/Tag/Mapping wiring, for `/create-context-field` |
 
-All three files are org-specific and should live in your project's `.rca/` directory (excluded from org-project version control via `.gitignore`). The templates here are starter copies only.
+All four files are org-specific and should live in your project's `.rca/` directory (excluded from org-project version control via `.gitignore`). The templates here are starter copies only.
 
 ---
 
@@ -186,6 +196,13 @@ catalog_pricing_procedure_steps.py  →  build/refresh the actionType + sequenci
                                      →  dry-run deploy, then confirm, then live deploy PermissionSetGroup(s)
 ```
 
+### Context Definitions
+```
+/create-context-field --discover-only  →  resolve + confirm the live ContextDefinition/Node/Mapping chain (zero writes)
+/create-context-field --dry-run        →  preview field + Context* records that would be created
+/create-context-field                  →  create the field, then the ContextAttribute/Tag/Mapping/HydrationDetail chain
+```
+
 ---
 
 ## Snapshot
@@ -221,6 +238,7 @@ Add this to your Salesforce project's `CLAUDE.md` so Claude Code knows where the
 - **Session catalog:** .rca/rca_session.yaml
 - **Master catalog:** .rca/rca_catalog.yaml
 - **Adjustments catalog:** .rca/rca_adjustments.yaml
+- **Context fields catalog:** .rca/context_fields.yaml
 ```
 
 The catalog paths are **project-relative** — each org project has its own `.rca/` directory containing its own catalog, session, and adjustments files. The scripts in `~/tools/rca-product-creator/` are the shared engine; only the data lives per-org.
@@ -233,6 +251,7 @@ mkdir -p .rca
 cp templates/rca_catalog.yaml .rca/
 cp templates/rca_session.yaml .rca/
 cp templates/rca_adjustments.yaml .rca/
+cp templates/context_fields.yaml .rca/
 # Sync the org snapshot
 /sync-rca-org
 ```
