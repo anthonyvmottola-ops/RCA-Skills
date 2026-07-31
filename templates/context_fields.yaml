@@ -1,0 +1,66 @@
+# Context Field Catalog — creates a custom field and wires it into RCA's
+# Sales Transaction Context Definition (ContextAttribute + ContextTag +
+# ContextAttributeMapping), so Pricing Procedures / Constraint Models / Apex
+# context hooks can read or write it.
+#
+# Usage: python create_context_field.py --catalog context_fields.yaml --org myorg --discover-only
+#        python create_context_field.py --catalog context_fields.yaml --org myorg --dry-run
+#        python create_context_field.py --catalog context_fields.yaml --org myorg
+#
+# v1 supports target_objects: Quote, QuoteLineItem, Order, OrderItem only.
+#
+# IMPORTANT: the SAME field (same api_name/label/type) is created on EVERY
+# object listed in context.target_objects — not just one. This is required
+# because a single ContextAttributeMapping.ContextInputAttributeName (the
+# api_name) has to resolve to a real field on each target object; if the
+# field only existed on one of them, the mapping for the other would point
+# at nothing.
+#
+# NOTE: `field_type_sf` (the Salesforce CustomField type) and `context.field_type`
+# (the ContextAttribute FieldType: input/output/inputoutput/aggregate) are
+# unrelated concepts that happen to share the word "type" — kept as separate
+# keys deliberately so a catalog author can't confuse them.
+
+context_fields:
+
+  - label: Loyalty Discount Percent
+    # api_name is optional — derived from label if omitted (see derive_api_name())
+    api_name: Loyalty_Discount_Percent__c
+    field_type_sf: Percent
+    precision: 5
+    scale: 2
+    description: "Loyalty program discount percentage applied at the line level"
+    create_field: true            # false = field already exists on every target object; skip Tooling API, just wire context
+    context:
+      attribute_title: LoyaltyDiscount            # ContextAttribute.Title (defaults to label)
+      tag_title: LoyaltyDiscountPercentage         # ContextTag.Title, the "read name" (defaults to attribute_title)
+      data_type: percent                           # string|number|boolean|date|datetime|percent|picklist|currency|reference|selfreference|lookup
+      field_type: input                            # input|output|inputoutput|aggregate
+      # is_key/is_value flag the KEY/VALUE columns of a TRANSPOSED (key-value)
+      # attribute pair on a transposable node (e.g. AttributeKey/AttributeValue
+      # on SalesTransactionItemAttribute) — NOT "this attribute holds a value".
+      # A plain directly-mapped attribute like this one must leave both false,
+      # matching every standard attribute on SalesTransactionItem (Discount,
+      # UnitPrice, etc. are all IsKey=false/IsValue=false). Confirmed live:
+      # setting is_value: true here caused Salesforce to reject the create
+      # with "Parent node should be transposable", since IsValue=true tells
+      # the platform this is meant to be a transposed value column.
+      is_key: false
+      is_value: false
+      target_objects: [QuoteLineItem, OrderItem]   # field created on BOTH; wired to SalesTransactionItem
+                                                    # node via QuoteEntitiesMapping and OrderEntitiesMapping
+    visibility:
+      profiles: [System Administrator, Sales Rep]
+      permission_sets: []
+      access: Edit
+
+  # Header-level example — target_objects: [Quote] alone wires to the
+  # "SalesTransaction" node instead of "SalesTransactionItem".
+  # - label: Preferred Currency Note
+  #   field_type_sf: Text
+  #   length: 255
+  #   context:
+  #     attribute_title: PreferredCurrencyNote
+  #     data_type: string
+  #     field_type: input
+  #     target_objects: [Quote, Order]

@@ -12,3 +12,6 @@ rca_catalog.yaml
 
 # Org snapshot — auto-generated, commit separately if you want to track org state
 .rca/
+
+# Salesforce CLI local cache — auto-generated, not org-specific
+.sfdx/
