@@ -14,6 +14,50 @@ templates/    YAML catalog templates
 
 ---
 
+## Installation & Setup
+
+> **If you're an AI agent setting this up:** there are two distinct steps below — a **global install** (run once per machine, and again after every `git pull` into this repo) and a **per-project setup** (run once per Salesforce project that wants to use this tooling). Do the global install first. Both are plain `cp`/`mkdir` commands — safe to re-run, nothing is ever deleted automatically.
+
+### 1. Global install
+
+Run from the root of this repo. This is the step that's easy to forget — every skill file resolves its scripts from `~/tools/rca-product-creator/`, not from wherever this repo happens to be checked out, and slash commands only work from wherever `~/.claude/commands/` (or a project's local `.claude/commands/`) is on the lookup path.
+
+```bash
+# Scripts — the shared engine every skill's Step 0 looks for at ~/tools/rca-product-creator/
+mkdir -p ~/tools/rca-product-creator
+cp scripts/*.py ~/tools/rca-product-creator/
+
+# Skills — Claude Code slash commands, available globally in every project
+mkdir -p ~/.claude/commands
+cp skills/*.md ~/.claude/commands/
+```
+
+**Verify nothing is missing** — run this any time after pulling repo updates, or before assuming a skill/script is installed:
+
+```bash
+echo "Scripts missing from ~/tools/rca-product-creator/:"
+comm -23 <(ls scripts/*.py | xargs -n1 basename | sort) <(ls ~/tools/rca-product-creator/*.py 2>/dev/null | xargs -n1 basename | sort)
+
+echo "Skills missing from ~/.claude/commands/:"
+comm -23 <(ls skills/*.md | xargs -n1 basename | sort) <(ls ~/.claude/commands/*.md 2>/dev/null | xargs -n1 basename | sort)
+```
+
+Any lines printed are missing — re-run the `cp` commands above to fix.
+
+### 2. Per-project setup
+
+For each Salesforce project that should use this tooling:
+
+```bash
+cd /path/to/your/sf-project
+mkdir -p .rca
+cp /path/to/this/repo/templates/*.yaml .rca/
+```
+
+Then add the `## RCA Tools` block to that project's `CLAUDE.md` — see [CLAUDE.md Setup](#claudemd-setup) for the exact block and an explanation of each path. Finally, run `/sync-rca-org` once to build the initial org snapshot.
+
+---
+
 ## Skills (`skills/`)
 
 ### CPQ Migration
@@ -79,16 +123,16 @@ Pricing Procedures are `ExpressionSetDefinition` metadata (nested XML, like a Fl
 
 ### Installation
 
-Copy the skill files you want into your project's `.claude/commands/` directory:
-
-```bash
-cp skills/*.md /path/to/your/sf-project/.claude/commands/
-```
-
-Or copy globally so they're available in every project:
+See [Installation & Setup](#installation--setup) above for the full global-install + per-project procedure. Quick version — copy globally so every project has these slash commands available:
 
 ```bash
 cp skills/*.md ~/.claude/commands/
+```
+
+Or copy just the ones you want into one project only:
+
+```bash
+cp skills/*.md /path/to/your/sf-project/.claude/commands/
 ```
 
 ---
