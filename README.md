@@ -119,7 +119,13 @@ Pricing Procedures are `ExpressionSetDefinition` metadata (nested XML, like a Fl
 
 | Skill | Invocation | Description |
 |---|---|---|
-| `create-context-field.md` | `/create-context-field` | Creates a custom field, then wires it into the live Sales Transaction Context Definition (`ContextAttribute` + `ContextTag` + `ContextAttributeMapping` + `ContextAttrHydrationDetail`) for `Quote`/`QuoteLineItem`/`Order`/`OrderItem` (extendable to `Asset`/`AssetAction`/`AssetActionSource`/`Contract`). Live-discovers the correct Context Definition/Node/Mapping chain every run — a mandatory `--discover-only` step always runs before any write. |
+| `create-context-field.md` | `/create-context-field` | Creates a custom field, then wires it into the live Sales Transaction Context Definition (`ContextAttribute` + `ContextTag` + `ContextAttributeMapping` + `ContextAttrHydrationDetail`) for `Quote`/`QuoteLineItem`/`Order`/`OrderItem` (extendable to `Asset`/`AssetAction`/`AssetActionSource`/`Contract`). Live-discovers the correct Context Definition/Node/Mapping chain every run — a mandatory `--discover-only` step always runs before any write. Supports `Lookup` fields as of 2026-08-19 (`reference_to` + optional `relationship_name`/`relationship_label`/`delete_constraint`), paired with `context.data_type: lookup`/`reference`/`selfreference`. |
+
+### Orchestration
+
+| Skill | Invocation | Description |
+|---|---|---|
+| `orchestrate-rca-build.md` | `/orchestrate-rca-build [--requirements <path>]` | Takes a full set of requirements spanning multiple skills (products, price adjustments, context fields, permission sets, ...), decomposes them into a dependency-ordered plan (Tier 1 Foundation → 2 Attributes → 3 Pricing → 4 Access → 5 Promotion, always separate), confirms the plan once, then dispatches each skill in turn. **A sequencer, not an autopilot** — never skips a dispatched skill's own discovery/dry-run/confirmation gates; stops and reports on any error or unexpected output rather than plowing through. |
 
 ### Installation
 
@@ -246,6 +252,19 @@ catalog_pricing_procedure_steps.py  →  build/refresh the actionType + sequenci
 /create-context-field --dry-run        →  preview field + Context* records that would be created
 /create-context-field                  →  create the field, then the ContextAttribute/Tag/Mapping/HydrationDetail chain
 ```
+
+### Multi-part builds (orchestrated)
+```
+/orchestrate-rca-build                 →  describe everything you need in one pass —
+                                           products, price adjustments, context fields, permission sets, ...
+                                        →  Claude decomposes into a tiered, dependency-ordered plan
+                                        →  confirm the plan once
+                                        →  each item dispatches its own skill, full gates intact
+                                        →  visible checklist after every item; stops and reports on any failure
+```
+Equivalent to running the sequences above by hand, in the right order, without
+re-explaining context between steps — see `skills/orchestrate-rca-build.md`
+for the full tier/dependency rules this formalizes.
 
 ---
 
