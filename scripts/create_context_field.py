@@ -335,6 +335,20 @@ def build_field_metadata(entry: Dict) -> Dict:
         }
         if field_type == "MultiselectPicklist":
             meta["visibleLines"] = entry.get("visible_lines", 4)
+    elif field_type == "Lookup":
+        # Ported from Org QuickStart's create_custom_fields.py — same shape,
+        # MasterDetail intentionally omitted (different cascade semantics,
+        # not needed here). Context* wiring for a Lookup's ContextAttribute
+        # uses DataType "lookup"/"reference"/"selfreference" (set via the
+        # catalog's context.data_type — confirmed valid picklist values on
+        # ContextAttribute), not derived from field_type_sf.
+        meta["referenceTo"] = entry["reference_to"]
+        meta["relationshipName"] = entry.get(
+            "relationship_name",
+            (entry.get("api_name") or derive_api_name(entry["label"])).rstrip("__c"),
+        )
+        meta["relationshipLabel"] = entry.get("relationship_label", entry["label"])
+        meta["deleteConstraint"] = entry.get("delete_constraint", "SetNull")
     else:
         raise ValueError(f"Unsupported field_type_sf: {field_type}")
 

@@ -64,3 +64,23 @@ context_fields:
   #     data_type: string
   #     field_type: input
   #     target_objects: [Quote, Order]
+
+  # Lookup example (confirmed live 2026-08-19) — reference_to is required;
+  # relationship_name/relationship_label/delete_constraint are optional and
+  # fall back to sensible defaults (see build_field_metadata()). Pair with
+  # context.data_type: lookup (or reference/selfreference) — MasterDetail is
+  # intentionally not supported here (different cascade-delete semantics).
+  # - label: Dealer Account
+  #   api_name: Dealer_Account__c
+  #   field_type_sf: Lookup
+  #   reference_to: Account
+  #   relationship_name: QuoteLineItems
+  #   relationship_label: "Quote Line Items"
+  #   delete_constraint: SetNull
+  #   context:
+  #     attribute_title: DealerAccount
+  #     data_type: lookup
+  #     field_type: input
+  #     is_key: false
+  #     is_value: false
+  #     target_objects: [QuoteLineItem]

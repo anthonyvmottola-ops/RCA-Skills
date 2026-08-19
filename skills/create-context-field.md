@@ -67,7 +67,16 @@ mapping wasn't visible in Setup.
 
 Supported `field_type_sf` values: `Text`, `TextArea`, `LongTextArea`,
 `Number`, `Currency`, `Percent`, `Date`, `DateTime`, `Checkbox`, `Email`,
-`Phone`, `Url`, `Picklist`, `MultiselectPicklist`.
+`Phone`, `Url`, `Picklist`, `MultiselectPicklist`, `Lookup` (confirmed live
+2026-08-19 — `reference_to` required; `relationship_name`,
+`relationship_label`, `delete_constraint` optional, same convention as Org
+QuickStart's `create-custom-fields`. `MasterDetail` intentionally not
+supported — different cascade-delete semantics, not needed for context
+wiring. Pair a Lookup field with `context.data_type: lookup` — or `reference`/
+`selfreference` for the other reference-shaped ContextAttribute DataType
+values — confirmed valid picklist values on `ContextAttribute` even though
+they were previously unreachable because `field_type_sf` had no `Lookup`
+branch).
 
 `target_objects` with a confirmed, live-verified mapping preference: `Quote`,
 `QuoteLineItem` (-> `QuoteEntitiesMapping`), `Order`, `OrderItem` (->
