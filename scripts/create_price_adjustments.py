@@ -343,11 +343,14 @@ class PriceAdjustmentCreator:
     def _step1_schedules(self) -> None:
         log.info("Step 1 — PriceAdjustmentSchedule")
 
-        # Authoritative live map: name → Id
+        # Authoritative live map: name → Id / EffectiveFrom
         existing_live: Dict[str, str] = {}
+        existing_live_effective_from: Dict[str, str] = {}
         try:
-            for rec in self.sf.query("SELECT Id, Name FROM PriceAdjustmentSchedule"):
+            for rec in self.sf.query("SELECT Id, Name, EffectiveFrom FROM PriceAdjustmentSchedule"):
                 existing_live[rec["Name"]] = rec["Id"]
+                if rec.get("EffectiveFrom"):
+                    existing_live_effective_from[rec["Name"]] = rec["EffectiveFrom"]
         except Exception:
             pass
 
@@ -362,13 +365,17 @@ class PriceAdjustmentCreator:
             # 1. Match by exact name against live org
             if name and name in existing_live:
                 resolved_id = existing_live[name]
+                sched["_resolved_effective_from"] = existing_live_effective_from.get(name)
                 log.info("PriceAdjustmentSchedule matched by name — using: %s", name)
                 self.stats["skipped"] += 1
 
-            # 2. No name given (or name not found) → match by schedule_type from snapshot.
+            # 2. No name given at all → match by schedule_type from snapshot.
             #    Candidates are in alphabetical order (ORDER BY Name in sync query), so
             #    "Standard X" schedules naturally sort before product-specific ones.
-            elif not resolved_id and sched_type and sched_type in self.snap_schedule_by_type:
+            #    An explicit name that doesn't exist live is a request to CREATE that
+            #    named schedule (step 3) — it must never fall back to type-matching an
+            #    unrelated existing schedule (which step 5 would then activate).
+            elif not resolved_id and not name and sched_type and sched_type in self.snap_schedule_by_type:
                 candidates = self.snap_schedule_by_type[sched_type]
                 if len(candidates) > 1:
                     names = [c.get("name", "") for c in candidates]
@@ -379,6 +386,7 @@ class PriceAdjustmentCreator:
                 if snap_name and snap_name in existing_live:
                     resolved_id   = existing_live[snap_name]
                     resolved_name = snap_name
+                    sched["_resolved_effective_from"] = existing_live_effective_from.get(snap_name)
                     log.info("PriceAdjustmentSchedule matched by type '%s' — using: %s",
                              sched_type, snap_name)
                     self.stats["skipped"] += 1
@@ -413,6 +421,7 @@ class PriceAdjustmentCreator:
                 try:
                     resolved_id   = self.sf.create("PriceAdjustmentSchedule", payload)
                     resolved_name = name
+                    sched["_resolved_effective_from"] = effective_from
                     self.stats["schedules"] += 1
                 except RuntimeError as exc:
                     msg = f"PriceAdjustmentSchedule '{name}': {exc}"
@@ -522,8 +531,12 @@ class PriceAdjustmentCreator:
                     payload["Product2Id"] = prod_id
                 if psm_id:
                     payload["ProductSellingModelId"] = psm_id
-                if tier.get("effective_from"):
-                    payload["EffectiveFrom"] = tier["effective_from"]
+                # EffectiveFrom is required by the org to save a tier — default to the
+                # parent schedule's EffectiveFrom (or now) when the tier doesn't set its own.
+                tier_effective_from = (tier.get("effective_from")
+                                        or sched.get("_resolved_effective_from")
+                                        or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
+                payload["EffectiveFrom"] = tier_effective_from
                 if tier.get("effective_to"):
                     payload["EffectiveTo"] = tier["effective_to"]
 
