@@ -9,7 +9,11 @@ Revenue Cloud Advanced (ARM) records via REST API:
   1. Product2                    (products + bundles sections)
   1a. ProductSellingModel        (new_selling_models section — create missing PSMs)
   2. ProductSellingModelOption   (psm_options per product/bundle)
-  3. PricebookEntry              (pricebook_entries per product/bundle)
+  3. PricebookEntry              (pricebook_entries per product/bundle; optional
+                                  per-entry 'selling_model' sets ProductSellingModelId —
+                                  required by orgs using PSM-specific pricing/"V2" entries;
+                                  that field is create-only, so a PSM mismatch on an
+                                  existing entry creates a new row rather than updating)
   4. ProductGroup                (bundles → groups)
   5. ProductRelatedComponent     (bundles → groups → components)
   6. AttributePicklist + AttributePicklistValue + AttributeDefinition
@@ -820,26 +824,31 @@ class RCAProductCreator:
             else:
                 log.warning("Pricebook '%s' not found — entries will be skipped.", name)
 
-        # existing_pbe: (prod_id, pb_id, currency) → (pbe_id, current_price)
+        # existing_pbe: (prod_id, pb_id, currency, psm_id) → (pbe_id, current_price)
         # Stored as dict so upsert mode can look up the record Id and current price.
+        # psm_id is None for PricebookEntry records not linked to a selling model
+        # (legacy rows, or orgs not using PSM-specific pricing).
         existing_pbe: Dict[tuple, tuple] = {}
         multi_currency = False
         if self.product_id_map and not self.sf.dry_run:
             prod_ids = ", ".join(f"'{v}'" for v in self.product_id_map.values())
             try:
                 for rec in self.sf.query(
-                    f"SELECT Id, Product2Id, Pricebook2Id, CurrencyIsoCode, UnitPrice "
+                    f"SELECT Id, Product2Id, Pricebook2Id, CurrencyIsoCode, UnitPrice, "
+                    f"ProductSellingModelId "
                     f"FROM PricebookEntry WHERE Product2Id IN ({prod_ids})"
                 ):
-                    key = (rec["Product2Id"], rec["Pricebook2Id"], rec["CurrencyIsoCode"])
+                    key = (rec["Product2Id"], rec["Pricebook2Id"], rec["CurrencyIsoCode"],
+                           rec.get("ProductSellingModelId"))
                     existing_pbe[key] = (rec["Id"], float(rec.get("UnitPrice") or 0))
                 multi_currency = True
             except Exception:
                 for rec in self.sf.query(
-                    f"SELECT Id, Product2Id, Pricebook2Id, UnitPrice "
+                    f"SELECT Id, Product2Id, Pricebook2Id, UnitPrice, ProductSellingModelId "
                     f"FROM PricebookEntry WHERE Product2Id IN ({prod_ids})"
                 ):
-                    key = (rec["Product2Id"], rec["Pricebook2Id"], "USD")
+                    key = (rec["Product2Id"], rec["Pricebook2Id"], "USD",
+                           rec.get("ProductSellingModelId"))
                     existing_pbe[key] = (rec["Id"], float(rec.get("UnitPrice") or 0))
 
         for entry in self.all_entries:
@@ -859,8 +868,22 @@ class RCAProductCreator:
                     self.stats["skipped"] += 1
                     continue
                 pb_id   = self.pricebook_id_map[pb_name]
-                pbe_key = (prod_id, pb_id, currency)
                 new_price = float(pbe.get("price", 0))
+
+                selling_model = str(pbe.get("selling_model", "")).strip()
+                psm_id = None
+                if selling_model:
+                    if selling_model not in self.psm_id_map:
+                        log.warning(
+                            "PricebookEntry %s/%s: selling_model '%s' not resolved — "
+                            "skipping (must appear in psm_options or new_selling_models).",
+                            code, pb_name, selling_model,
+                        )
+                        self.stats["skipped"] += 1
+                        continue
+                    psm_id = self.psm_id_map[selling_model]
+
+                pbe_key = (prod_id, pb_id, currency, psm_id)
 
                 if pbe_key in existing_pbe:
                     pbe_id, cur_price = existing_pbe[pbe_key]
@@ -887,6 +910,8 @@ class RCAProductCreator:
                 }
                 if multi_currency:
                     payload["CurrencyIsoCode"] = currency
+                if psm_id:
+                    payload["ProductSellingModelId"] = psm_id
                 try:
                     self.sf.create("PricebookEntry", payload)
                     self.stats["pricebook_entries"] += 1

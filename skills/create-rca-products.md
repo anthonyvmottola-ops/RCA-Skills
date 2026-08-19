@@ -23,6 +23,7 @@ From `rca_session.yaml` (the current session catalog, or pass `--catalog` for a 
 | `products[].category` / `bundles[].category` | `CatalogProduct` junction record linking Product2 → ProductCategory |
 | `products`      | Product2, ProductSellingModelOption, PricebookEntry |
 | `bundles`       | Product2, ProductSellingModelOption, PricebookEntry, ProductComponentGroup, ProductRelatedComponent |
+| `pricebook_entries[].selling_model` | Optional — sets `PricebookEntry.ProductSellingModelId` (resolved against the same PSM the entry's product/bundle already lists in `psm_options`). Required for orgs using PSM-specific pricing ("Price Book Entries V2"); omit for orgs where PricebookEntry isn't PSM-scoped. This field is create-only on PricebookEntry — a wrong/missing value can't be patched, only fixed by deleting and recreating the row. |
 | `classification` (per entry) | Sets `Product2.BasedOnId` → `ProductClassification` (looked up by Name or Code) |
 | `attributes[].picklist_name` | AttributePicklist (looked up by Name/Code, or created; `DataType` defaults to `"Text"`) |
 | `attributes[].picklist_values` | AttributePicklistValue records linked to the AttributePicklist |
@@ -207,7 +208,7 @@ Safe to re-run. Existing records are skipped, matched by:
 - CatalogProduct → `(Product2Id, ProductCategoryId)` — skip if found
 - Product2 → `ProductCode`
 - PSM Options → `(Product2Id, ProductSellingModelId)`
-- PricebookEntry → `(Product2Id, Pricebook2Id, CurrencyIsoCode)`
+- PricebookEntry → `(Product2Id, Pricebook2Id, CurrencyIsoCode, ProductSellingModelId)` — a null `selling_model` and a set one are different keys, so adding `selling_model` to an existing catalog entry creates a new row rather than updating the old one
 - ProductComponentGroup → `(Name, ParentProductId)`
 - ProductRelatedComponent → `(ParentProductId, ChildProductId, ProductComponentGroupId)`
 - Classification → `Product2.BasedOnId` already equals the target `ProductClassification.Id`
