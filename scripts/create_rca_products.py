@@ -8,7 +8,15 @@ Revenue Cloud Advanced (ARM) records via REST API:
   0. ProductCatalog + ProductCategory  (catalogs section — hierarchy)
   1. Product2                    (products + bundles sections)
   1a. ProductSellingModel        (new_selling_models section — create missing PSMs)
-  2. ProductSellingModelOption   (psm_options per product/bundle)
+  2. ProductSellingModelOption   (psm_options per product/bundle; IsDefault set on
+                                  the sole option when there's only one, or on
+                                  'default_psm' when there are several — confirmed
+                                  live: a bundle whose child has NO default PSM
+                                  can't be auto-added to a quote at all — Salesforce
+                                  requires manually opening the bundle configurator
+                                  to pick a selling model first, and the "quick add"
+                                  path fails with "Required fields are missing:
+                                  [Price Book Entry]" since it can't resolve one)
   3. PricebookEntry              (pricebook_entries per product/bundle; optional
                                   per-entry 'selling_model' sets ProductSellingModelId —
                                   required by orgs using PSM-specific pricing/"V2" entries;
@@ -185,6 +193,7 @@ def normalize_entry(entry: Dict) -> Dict:
         "uom":               str(entry.get("uom", "")).strip(),
         "sku":               str(entry.get("sku", "")).strip(),
         "psm_options":       entry.get("psm_options", []),
+        "default_psm":       str(entry.get("default_psm", "")).strip(),
         "pricebook_entries": entry.get("pricebook_entries", []),
         "groups":            entry.get("groups", []),
         "classification":    str(entry.get("classification", "")).strip(),
@@ -764,14 +773,17 @@ class RCAProductCreator:
                     "create it in Setup › Revenue › Selling Models first.", name
                 )
 
-        existing_options: set = set()
+        # existing_options: (prod_id, psm_id) → current IsDefault value.
+        existing_options: Dict[tuple, bool] = {}
         if self.product_id_map and not self.sf.dry_run:
             prod_ids = ", ".join(f"'{v}'" for v in self.product_id_map.values())
             for rec in self.sf.query(
-                f"SELECT Product2Id, ProductSellingModelId "
+                f"SELECT Id, Product2Id, ProductSellingModelId, IsDefault "
                 f"FROM ProductSellingModelOption WHERE Product2Id IN ({prod_ids})"
             ):
-                existing_options.add((rec["Product2Id"], rec["ProductSellingModelId"]))
+                existing_options[(rec["Product2Id"], rec["ProductSellingModelId"])] = {
+                    "id": rec["Id"], "is_default": bool(rec.get("IsDefault")),
+                }
 
         for entry in self.all_entries:
             code = entry["code"]
@@ -779,22 +791,55 @@ class RCAProductCreator:
                 continue
             prod_id = self.product_id_map[code]
 
-            for psm_name in entry.get("psm_options", []):
-                if not isinstance(psm_name, str) or not psm_name.strip():
-                    continue
+            psm_names = [p for p in entry.get("psm_options", [])
+                         if isinstance(p, str) and p.strip()]
+
+            # Determine which psm_option (if any) should be IsDefault=true.
+            # A lone option is unambiguously the default. With several options,
+            # only an explicit 'default_psm' decides — never guess, since marking
+            # the wrong one IsDefault is as disruptive as marking none at all.
+            default_psm = entry.get("default_psm", "").strip()
+            if len(psm_names) == 1:
+                default_psm = psm_names[0]
+            elif len(psm_names) > 1 and not default_psm:
+                log.warning(
+                    "%s has %d psm_options but no 'default_psm' set — the bundle/"
+                    "product configurator may require manually picking a selling "
+                    "model before it can be added to a quote. Set 'default_psm' "
+                    "in the catalog to fix.", code, len(psm_names),
+                )
+
+            for psm_name in psm_names:
                 if psm_name not in self.psm_id_map:
                     self.stats["skipped"] += 1
                     continue
                 psm_id = self.psm_id_map[psm_name]
-                if (prod_id, psm_id) in existing_options:
-                    log.info("PSM option exists — skipping: %s / %s", code, psm_name)
+                should_default = (psm_name == default_psm)
+                key = (prod_id, psm_id)
+
+                if key in existing_options:
+                    existing = existing_options[key]
+                    if should_default and not existing["is_default"]:
+                        try:
+                            self.sf.update("ProductSellingModelOption", existing["id"],
+                                           {"IsDefault": True})
+                            log.info("Set IsDefault=true on existing PSM option: %s / %s",
+                                      code, psm_name)
+                        except RuntimeError as exc:
+                            msg = f"Set IsDefault {code}/{psm_name}: {exc}"
+                            log.error(msg)
+                            self.stats["errors"].append(msg)
+                    else:
+                        log.info("PSM option exists — skipping: %s / %s", code, psm_name)
                     self.stats["skipped"] += 1
                     continue
                 try:
-                    self.sf.create("ProductSellingModelOption",
-                                   {"Product2Id": prod_id, "ProductSellingModelId": psm_id})
+                    payload: Dict[str, Any] = {"Product2Id": prod_id, "ProductSellingModelId": psm_id}
+                    if should_default:
+                        payload["IsDefault"] = True
+                    self.sf.create("ProductSellingModelOption", payload)
                     self.stats["psm_options"] += 1
-                    existing_options.add((prod_id, psm_id))
+                    existing_options[key] = {"id": f"NEW-{code}", "is_default": should_default}
                 except RuntimeError as exc:
                     msg = f"PSM Option {code}/{psm_name}: {exc}"
                     log.error(msg)

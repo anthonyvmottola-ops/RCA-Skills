@@ -24,6 +24,7 @@ From `rca_session.yaml` (the current session catalog, or pass `--catalog` for a 
 | `products`      | Product2, ProductSellingModelOption, PricebookEntry |
 | `bundles`       | Product2, ProductSellingModelOption, PricebookEntry, ProductComponentGroup, ProductRelatedComponent |
 | `pricebook_entries[].selling_model` | Optional — sets `PricebookEntry.ProductSellingModelId` (resolved against the same PSM the entry's product/bundle already lists in `psm_options`). Required for orgs using PSM-specific pricing ("Price Book Entries V2"); omit for orgs where PricebookEntry isn't PSM-scoped. This field is create-only on PricebookEntry — a wrong/missing value can't be patched, only fixed by deleting and recreating the row. |
+| `default_psm` | Optional — which `psm_options` entry gets `ProductSellingModelOption.IsDefault = true`. Auto-set when there's only one PSM option (the sole option is unambiguously the default); with several options, **required** to avoid guessing wrong. **Confirmed live:** a product/bundle child with no default PSM at all can't be auto-added to a quote — Salesforce requires manually opening the bundle configurator to pick a selling model first, and the "quick add" path fails with `Required fields are missing: [Price Book Entry]` since it can't resolve one on its own. |
 | `classification` (per entry) | Sets `Product2.BasedOnId` → `ProductClassification` (looked up by Name or Code) |
 | `attributes[].picklist_name` | AttributePicklist (looked up by Name/Code, or created; `DataType` defaults to `"Text"`) |
 | `attributes[].picklist_values` | AttributePicklistValue records linked to the AttributePicklist |
@@ -232,6 +233,7 @@ Safe to re-run. Existing records are skipped, matched by:
 | `INSUFFICIENT_ACCESS` | Missing permissions | Assign Revenue Cloud Admin permission set |
 | `ProductCategoryProduct … failed [400]` | Field or permission issue | Check that `ProductCategoryId` and `ProductId` are correct; assign Revenue Cloud Admin permission set |
 | `ProductCategory 'X' not found` | Category missing or name mismatch | Check Name in Setup › Product Catalog Management, or add it to the `catalogs` section in the YAML |
+| Quote UI: "Your quote was not updated. Required fields are missing: [Price Book Entry]" when adding a product/bundle | No `ProductSellingModelOption.IsDefault = true` for that product (or a bundle child) — the "quick add" path can't resolve which PricebookEntry to use without one | Confirmed live 2026-08-19. The script now sets this automatically (single PSM option → auto-default; multiple → set `default_psm` in the catalog). For products created before this fix, re-run the script — it upserts `IsDefault` on existing PSM options, then refresh the Price Book Entries V2 decision table |
 
 ---
 

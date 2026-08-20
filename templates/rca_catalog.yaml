@@ -35,6 +35,12 @@ products:
   psm_options:
   - Annual Termed
   - Monthly Evergreen
+  default_psm: Annual Termed   # required whenever there's >1 psm_options — otherwise
+                                # this product/bundle child can't be auto-added to a
+                                # quote at all (confirmed live 2026-08-19: Salesforce
+                                # needs a default PSM to resolve a PricebookEntry on
+                                # the "quick add" path; a single psm_options entry
+                                # doesn't need this, it's auto-defaulted)
   pricebook_entries:
   - pricebook: Standard Price Book
     price: 48000.0
