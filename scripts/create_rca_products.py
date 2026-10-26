@@ -118,11 +118,11 @@ class SalesforceClient:
         log.info("Created %-35s  Id: %s", sobject, record_id)
         return record_id
 
-    def update(self, sobject: str, record_id: str, payload: Dict) -> None:
+    def update(self, sobject: str, record_id: str, payload: Dict, force: bool = False) -> None:
         if self.dry_run:
             log.info("[DRY-RUN] Would update %s %s: %s", sobject, record_id, json.dumps(payload))
             return
-        if self.create_only:
+        if self.create_only and not force:
             log.info("[CREATE-ONLY] Skipping update %s %s", sobject, record_id)
             return
         resp = requests.patch(f"{self.base_url}/sobjects/{sobject}/{record_id}",
@@ -1142,8 +1142,14 @@ class RCAProductCreator:
                             comp_payload["QuantityScaleMethod"] = comp["quantity_scale_method"]
                         if bundle_rel_type_id:
                             comp_payload["ProductRelationshipTypeId"] = bundle_rel_type_id
-                        self.sf.create("ProductRelatedComponent", comp_payload)
+                        comp_rec_id = self.sf.create("ProductRelatedComponent", comp_payload)
                         self.stats["components"] += 1
+                        # QuantityScaleMethod sent on create is silently dropped (saved as
+                        # null) — confirmed live in PreSales 2026-10-26; a PATCH sticks.
+                        if comp.get("quantity_scale_method"):
+                            self.sf.update("ProductRelatedComponent", comp_rec_id,
+                                           {"QuantityScaleMethod": comp["quantity_scale_method"]},
+                                           force=True)  # completes the create; not an upsert
                     except RuntimeError as exc:
                         msg = f"Component {comp_code} in {bundle_code}/{group_name}: {exc}"
                         log.error(msg)

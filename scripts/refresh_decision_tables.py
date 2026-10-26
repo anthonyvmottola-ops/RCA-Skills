@@ -113,16 +113,18 @@ def refresh_tables(sf, table_keys: list[str], dry_run: bool = False) -> None:
         for _ in range(POLL_MAX_ATTEMPTS):
             time.sleep(POLL_INTERVAL_SEC)
             try:
+                # Poll by DeveloperName: the sf_id values are myorg-specific and
+                # don't exist in other orgs (confirmed in PreSales 2026-10-26).
                 records = sf.query(
                     f"SELECT RefreshStatus, RefreshFailureReason "
-                    f"FROM DecisionTable WHERE Id = '{sf_id}'"
+                    f"FROM DecisionTable WHERE DeveloperName = '{dev_name}'"
                 )
             except Exception as exc:
                 log.warning("  ⚠ Polling error for '%s': %s", label, exc)
                 break
 
             if not records:
-                log.warning("  ⚠ No DecisionTable record found for id '%s'", sf_id)
+                log.warning("  ⚠ No DecisionTable record found for '%s'", dev_name)
                 break
 
             status = records[0].get("RefreshStatus", "")
